@@ -36,33 +36,28 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+        freeCompilerArgs += listOf(
+            "-Xjvm-default=all"
+        )
+    }
+    kapt {
+        useBuildCache = false
+        correctErrorTypes = true
+        javacOptions {
+            option("-source", "8")
+            option("-target", "8")
+        }
     }
     buildFeatures {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-    }
-}
-
-kapt {
-    correctErrorTypes = true
-    javacOptions {
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED")
-        option("--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED")
     }
 }
 
@@ -109,5 +104,8 @@ dependencies {
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     kapt("androidx.room:room-compiler:$room_version")
+    
+    // Модуль профиля
+    implementation(project(":profile"))
 
 }

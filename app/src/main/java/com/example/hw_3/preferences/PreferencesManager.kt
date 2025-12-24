@@ -37,13 +37,17 @@ class PreferencesManager(private val context: Context) {
             if (filterPreferences.selectedDay != null) {
                 preferences[DAY_KEY] = filterPreferences.selectedDay!!
             } else {
-                preferences.remove(DAY_KEY)
+                if (preferences.contains(DAY_KEY)) {
+                    preferences.remove(DAY_KEY)
+                }
             }
             
             if (filterPreferences.nameSearch.isNotEmpty()) {
                 preferences[NAME_SEARCH_KEY] = filterPreferences.nameSearch
             } else {
-                preferences.remove(NAME_SEARCH_KEY)
+                if (preferences.contains(NAME_SEARCH_KEY)) {
+                    preferences.remove(NAME_SEARCH_KEY)
+                }
             }
         }
     }

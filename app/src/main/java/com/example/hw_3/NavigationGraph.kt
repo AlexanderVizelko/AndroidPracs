@@ -11,12 +11,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.hw_3.cache.FilterCache
 import com.example.hw_3.preferences.PreferencesManager
-import com.example.hw_3.screens.EditProfileScreen
+import com.example.profile.screens.EditProfileScreen
 import com.example.hw_3.screens.FavoritesScreen
 import com.example.hw_3.screens.FilterScreen
 import com.example.hw_3.screens.Screen1
 import com.example.hw_3.viewmodel.FavoritesViewModel
 import com.example.hw_3.viewmodel.QuoteViewModel
+import com.example.hw_3.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -52,7 +53,10 @@ fun NavigationGraph(
         }
         composable(Routes.EditProfile.route) {
             onBottomBarVisibilityChanged(false)
-            EditProfileScreen(navController = navController)
+            EditProfileScreen(
+                navController = navController,
+                mainActivityClass = MainActivity::class.java
+            )
         }
         composable(Routes.FilterScreen.route) {
             onBottomBarVisibilityChanged(false)
