@@ -18,24 +18,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.hw_3.Routes
-import com.example.hw_3.data.NameDay
-import com.example.hw_3.viewmodel.QuoteViewModel
+import com.example.hw_3.domain.model.NameDay
+import com.example.hw_3.presentation.ui.state.NameDayUiState
+import com.example.hw_3.presentation.viewmodel.NameDayViewModel
+import com.example.hw_3.presentation.viewmodel.ViewModelFactory
 
 @Composable
 fun Screen1(
     navController: NavHostController,
-    viewModel: QuoteViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: NameDayViewModel = viewModel(factory = ViewModelFactory())
 ) {
-    val quotes by viewModel.quotes.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Сохраняем значение в локальную переменную для smart cast
+    val currentState = uiState
 
     LaunchedEffect(Unit) {
-        // Загружаем данные только если их нет
-        if (quotes.isEmpty()) {
-            viewModel.fetchQuotes(30) // Загружаем 30 именин
+        // Загружаем данные при первом запуске
+        if (currentState is NameDayUiState.Empty) {
+            viewModel.fetchNameDays(3) // Загружаем 3 именин (API медленный, будет fallback если не загрузится)
         }
     }
 
@@ -91,124 +95,114 @@ fun Screen1(
                 }
             }
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(64.dp),
-                            color = Color(0xFF1976D2),
-                            strokeWidth = 4.dp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Загрузка именин...",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF1976D2)
-                        )
-                    }
-                }
-            } else if (error != null) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFFFEBEE)
+            when (currentState) {
+                is NameDayUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(64.dp),
+                                color = Color(0xFF1976D2),
+                                strokeWidth = 4.dp
                             )
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Загрузка именин...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF1976D2)
+                            )
+                        }
+                    }
+                }
+                is NameDayUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFFFFEBEE)
+                                )
                             ) {
-                                Text(
-                                    text = "⚠️",
-                                    style = MaterialTheme.typography.displaySmall
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = error!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = {
-                                        if (error!!.contains("429") || error!!.contains("много запросов") || error!!.contains("секунд")) {
-                                            viewModel.retryFetchQuotes(30000)
-                                        } else {
-                                            viewModel.fetchQuotes()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF1976D2)
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Попробовать снова")
-                                }
-                                if (error!!.contains("429") || error!!.contains("много запросов") || error!!.contains("секунд")) {
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "⏱ Подождите 30 секунд перед следующей попыткой",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
+                                        text = "⚠️",
+                                        style = MaterialTheme.typography.displaySmall
                                     )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = currentState.message,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = { viewModel.retry() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF1976D2)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Попробовать снова")
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            } else if (quotes.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "📅",
-                            style = MaterialTheme.typography.displayLarge
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Нет данных об именинах",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { viewModel.fetchQuotes() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1976D2)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Загрузить именины")
+                is NameDayUiState.Empty -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "📅",
+                                style = MaterialTheme.typography.displayLarge
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Нет данных об именинах",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { viewModel.fetchNameDays(3) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF1976D2)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Загрузить именины")
+                            }
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    itemsIndexed(quotes) { index, nameDay ->
-                        NameDayItem(
-                            nameDay = nameDay,
-                            index = index,
-                            onNameDayClick = {
-                                navController.navigate(Routes.QuoteDetail.createRoute(index))
-                            }
-                        )
+                is NameDayUiState.Success -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        itemsIndexed(currentState.nameDays) { index, nameDay ->
+                            NameDayItem(
+                                nameDay = nameDay,
+                                index = index,
+                                onNameDayClick = {
+                                    navController.navigate(Routes.QuoteDetail.createRoute(index))
+                                }
+                            )
+                        }
                     }
                 }
             }

@@ -6,19 +6,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.hw_3.screens.Screen1
-import com.example.hw_3.viewmodel.QuoteViewModel
 
 
 @Composable
 fun NavigationGraph(
     navController: NavHostController,
-    onBottomBarVisibilityChanged: (Boolean) -> Unit,
-    quoteViewModel: QuoteViewModel
+    onBottomBarVisibilityChanged: (Boolean) -> Unit
 ) {
     NavHost(navController, startDestination = Routes.Screen1.route) {
         composable(Routes.Screen1.route) {
             onBottomBarVisibilityChanged(true)
-            Screen1(navController = navController, viewModel = quoteViewModel)
+            Screen1(navController = navController)
         }
         composable(Routes.Screen2.route) {
             onBottomBarVisibilityChanged(true)
@@ -38,8 +36,7 @@ fun NavigationGraph(
             val quoteIndex = backStackEntry.arguments?.getInt("quoteIndex") ?: 0
             QuoteDetailScreen(
                 quoteIndex = quoteIndex,
-                navController = navController,
-                viewModel = quoteViewModel
+                navController = navController
             )
         }
     }

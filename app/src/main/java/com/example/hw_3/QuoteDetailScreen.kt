@@ -19,18 +19,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.hw_3.data.NameDay
-import com.example.hw_3.viewmodel.QuoteViewModel
+import com.example.hw_3.domain.model.NameDay
+import com.example.hw_3.presentation.ui.state.NameDayUiState
+import com.example.hw_3.presentation.viewmodel.NameDayViewModel
+import com.example.hw_3.presentation.viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuoteDetailScreen(
     quoteIndex: Int,
     navController: NavHostController,
-    viewModel: QuoteViewModel
+    viewModel: NameDayViewModel = viewModel(factory = ViewModelFactory())
 ) {
-    val quotes by viewModel.quotes.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Сохраняем значение в локальную переменную для smart cast
+    val currentState = uiState
+    val quotes = when (currentState) {
+        is NameDayUiState.Success -> currentState.nameDays
+        else -> emptyList()
+    }
 
     val nameDay = if (quoteIndex >= 0 && quoteIndex < quotes.size) {
         quotes[quoteIndex]
