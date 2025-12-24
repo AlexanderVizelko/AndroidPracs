@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,7 +30,10 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.hw_3.data.Profile
 import com.example.hw_3.preferences.ProfileManager
+import com.example.hw_3.notifications.NotificationHelper
 import kotlinx.coroutines.launch
+import android.app.TimePickerDialog
+import java.util.Calendar
 
 @Composable
 fun EditProfileScreen(navController: NavController) {
@@ -43,6 +47,8 @@ fun EditProfileScreen(navController: NavController) {
     var resumeUrl by remember { mutableStateOf("") }
     var position by remember { mutableStateOf("") }
     var avatarUri by remember { mutableStateOf<String?>(null) }
+    var favoritePairTime by remember { mutableStateOf("") }
+    var timeError by remember { mutableStateOf<String?>(null) }
     
     // Синхронизируем состояние с профилем при первой загрузке
     LaunchedEffect(Unit) {
@@ -50,6 +56,21 @@ fun EditProfileScreen(navController: NavController) {
         resumeUrl = profile.resumeUrl
         position = profile.position
         avatarUri = profile.avatarUri
+        favoritePairTime = profile.favoritePairTime
+    }
+    
+    // Валидация времени
+    fun validateTime(time: String): Boolean {
+        if (time.isBlank()) {
+            timeError = null // Пустое поле допустимо
+            return true
+        }
+        if (!NotificationHelper.isValidTimeFormat(time)) {
+            timeError = "Неверный формат времени. Используйте HH:mm (например, 14:30)"
+            return false
+        }
+        timeError = null
+        return true
     }
     
     
@@ -184,18 +205,33 @@ fun EditProfileScreen(navController: NavController) {
             )
             TextButton(
                 onClick = {
-                    scope.launch {
-                        profileManager.saveProfile(
-                            Profile(
+                    if (favoritePairTime.isBlank() || validateTime(favoritePairTime)) {
+                        scope.launch {
+                            val savedProfile = Profile(
                                 fullName = fullName,
                                 avatarUri = avatarUri,
                                 resumeUrl = resumeUrl,
-                                position = position
+                                position = position,
+                                favoritePairTime = favoritePairTime
                             )
-                        )
-                        navController.popBackStack()
+                            profileManager.saveProfile(savedProfile)
+                            
+                            // Устанавливаем уведомление, если время валидно
+                            if (favoritePairTime.isNotBlank() && fullName.isNotBlank()) {
+                                NotificationHelper.scheduleNotification(
+                                    context,
+                                    favoritePairTime,
+                                    fullName
+                                )
+                            } else if (favoritePairTime.isBlank()) {
+                                NotificationHelper.cancelNotification(context)
+                            }
+                            
+                            navController.popBackStack()
+                        }
                     }
-                }
+                },
+                enabled = favoritePairTime.isBlank() || timeError == null
             ) {
                 Text("Готово")
             }
@@ -286,6 +322,58 @@ fun EditProfileScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             placeholder = { Text("https://example.com/resume.pdf") }
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Поле времени любимой пары
+        OutlinedTextField(
+            value = favoritePairTime,
+            onValueChange = { 
+                favoritePairTime = it
+                if (it.isNotBlank()) {
+                    validateTime(it)
+                } else {
+                    timeError = null
+                }
+            },
+            label = { Text("Время любимой пары") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("HH:mm (например, 14:30)") },
+            isError = timeError != null,
+            supportingText = timeError?.let { { Text(it) } },
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        val calendar = Calendar.getInstance()
+                        // Парсим текущее значение времени, если оно есть
+                        if (favoritePairTime.isNotBlank() && NotificationHelper.isValidTimeFormat(favoritePairTime)) {
+                            val timeParts = favoritePairTime.split(":")
+                            calendar.set(Calendar.HOUR_OF_DAY, timeParts[0].toInt())
+                            calendar.set(Calendar.MINUTE, timeParts[1].toInt())
+                        }
+                        
+                        TimePickerDialog(
+                            context,
+                            { _, hourOfDay, minute ->
+                                val timeString = String.format("%02d:%02d", hourOfDay, minute)
+                                favoritePairTime = timeString
+                                validateTime(timeString)
+                            },
+                            calendar.get(Calendar.HOUR_OF_DAY),
+                            calendar.get(Calendar.MINUTE),
+                            true
+                        ).show()
+                    }
+                ) {
+                    Icon(
+                        Icons.Filled.Schedule,
+                        contentDescription = "Выбрать время",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         )
         
         Spacer(modifier = Modifier.weight(1f))

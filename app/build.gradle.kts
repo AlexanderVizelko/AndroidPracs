@@ -37,48 +37,32 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
-    
-    kapt {
-        correctErrorTypes = true
-        useBuildCache = true
-        arguments {
-            arg("room.schemaLocation", "$projectDir/schemas")
-        }
-        javacOptions {
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED")
-            option("--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED")
-        }
-    }
-    
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions {
-            jvmTarget = "1.8"
-        }
-    }
-    
-    tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptGenerateStubsTask>().configureEach {
-        kotlinOptions {
-            jvmTarget = "1.8"
-        }
-    }
     buildFeatures {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
+        kotlinCompilerExtensionVersion = "1.5.10"
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kapt {
+    correctErrorTypes = true
+    javacOptions {
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED")
+        option("--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED")
     }
 }
 
