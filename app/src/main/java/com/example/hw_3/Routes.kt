@@ -14,4 +14,5 @@ sealed class Routes(val route: String) {
     object QuoteDetail : Routes("quote_detail/{quoteIndex}") {
         fun createRoute(quoteIndex: Int) = "quote_detail/$quoteIndex"
     }
+    object EditProfile : Routes("edit_profile")
 }

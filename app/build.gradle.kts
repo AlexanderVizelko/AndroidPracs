@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("com.google.devtools.ksp") version "1.9.0-1.0.13"
+    id("kotlin-kapt")
 }
 
 android {
@@ -37,11 +37,43 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+    
+    kapt {
+        correctErrorTypes = true
+        useBuildCache = true
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+        }
+        javacOptions {
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.jvm=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED")
+            option("--add-opens", "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED")
+        }
+    }
+    
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        kotlinOptions {
+            jvmTarget = "1.8"
+        }
+    }
+    
+    tasks.withType<org.jetbrains.kotlin.gradle.internal.KaptGenerateStubsTask>().configureEach {
+        kotlinOptions {
+            jvmTarget = "1.8"
+        }
+    }
     buildFeatures {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
     packaging {
         resources {
@@ -92,6 +124,6 @@ dependencies {
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
-    ksp("androidx.room:room-compiler:$room_version")
+    kapt("androidx.room:room-compiler:$room_version")
 
 }

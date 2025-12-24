@@ -35,4 +35,3 @@ interface FavoriteNameDayDao {
     suspend fun deleteAllFavorites()
 }
 
-

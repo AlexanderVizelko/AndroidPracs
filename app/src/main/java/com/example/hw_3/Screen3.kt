@@ -1,22 +1,10 @@
 package com.example.hw_3
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
+import com.example.hw_3.screens.ProfileScreen
 
 @Composable
-fun Screen3() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentSize(Alignment.Center)
-    ) {
-        Text(
-            text = "Screen 3"
-        )
-    }
+fun Screen3(navController: NavController) {
+    ProfileScreen(navController = navController)
 }

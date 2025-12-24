@@ -45,4 +45,3 @@ class FavoritesRepository(private val favoriteDao: FavoriteNameDayDao) {
     }
 }
 
-

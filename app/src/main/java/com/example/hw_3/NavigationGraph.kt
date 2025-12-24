@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.hw_3.cache.FilterCache
 import com.example.hw_3.preferences.PreferencesManager
+import com.example.hw_3.screens.EditProfileScreen
 import com.example.hw_3.screens.FavoritesScreen
 import com.example.hw_3.screens.FilterScreen
 import com.example.hw_3.screens.Screen1
@@ -47,7 +48,11 @@ fun NavigationGraph(
         }
         composable(Routes.Screen3.route) {
             onBottomBarVisibilityChanged(true)
-            Screen3()
+            Screen3(navController = navController)
+        }
+        composable(Routes.EditProfile.route) {
+            onBottomBarVisibilityChanged(false)
+            EditProfileScreen(navController = navController)
         }
         composable(Routes.FilterScreen.route) {
             onBottomBarVisibilityChanged(false)

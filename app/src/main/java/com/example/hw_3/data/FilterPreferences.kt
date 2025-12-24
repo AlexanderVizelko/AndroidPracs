@@ -6,4 +6,3 @@ data class FilterPreferences(
     val selectedDay: Int? = null,   // null означает "все дни", 1-31 для конкретного дня
     val nameSearch: String = ""     // Пустая строка означает "все имена"
 )
-
