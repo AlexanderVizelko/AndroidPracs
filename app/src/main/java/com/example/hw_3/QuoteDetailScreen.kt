@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,28 +20,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.hw_3.domain.model.NameDay
-import com.example.hw_3.presentation.ui.state.NameDayUiState
-import com.example.hw_3.presentation.viewmodel.NameDayViewModel
-import com.example.hw_3.presentation.viewmodel.ViewModelFactory
+import com.example.hw_3.data.NameDay
+import com.example.hw_3.viewmodel.FavoritesViewModel
+import com.example.hw_3.viewmodel.QuoteViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuoteDetailScreen(
     quoteIndex: Int,
     navController: NavHostController,
-    viewModel: NameDayViewModel = viewModel(factory = ViewModelFactory())
+    viewModel: QuoteViewModel,
+    favoritesViewModel: FavoritesViewModel
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    
-    // Сохраняем значение в локальную переменную для smart cast
-    val currentState = uiState
-    val quotes = when (currentState) {
-        is NameDayUiState.Success -> currentState.nameDays
-        else -> emptyList()
-    }
+    val quotes by viewModel.quotes.collectAsState()
 
     val nameDay = if (quoteIndex >= 0 && quoteIndex < quotes.size) {
         quotes[quoteIndex]
@@ -141,6 +135,7 @@ fun QuoteDetailScreen(
                 NameDayDetailContent(
                     nameDay = nameDay,
                     index = quoteIndex,
+                    favoritesViewModel = favoritesViewModel,
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -149,7 +144,20 @@ fun QuoteDetailScreen(
 }
 
 @Composable
-fun NameDayDetailContent(nameDay: NameDay, index: Int, modifier: Modifier = Modifier) {
+fun NameDayDetailContent(
+    nameDay: NameDay,
+    index: Int,
+    favoritesViewModel: FavoritesViewModel,
+    modifier: Modifier = Modifier
+) {
+    var isFavorite by remember { mutableStateOf(false) }
+    var showFavoriteDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Проверяем, является ли избранным
+    LaunchedEffect(nameDay) {
+        isFavorite = favoritesViewModel.isFavorite(nameDay)
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -279,6 +287,73 @@ fun NameDayDetailContent(nameDay: NameDay, index: Int, modifier: Modifier = Modi
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+        
+        // Кнопка избранного
+        Button(
+            onClick = { showFavoriteDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isFavorite) Color(0xFFE91E63) else Color(0xFF1976D2)
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isFavorite) "Удалить из избранного" else "Добавить в избранное",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+    
+    // Диалог подтверждения
+    if (showFavoriteDialog) {
+        AlertDialog(
+            onDismissRequest = { showFavoriteDialog = false },
+            title = {
+                Text(if (isFavorite) "Удалить из избранного?" else "Добавить в избранное?")
+            },
+            text = {
+                Text(
+                    if (isFavorite) {
+                        "Именины \"${nameDay.displayNames}\" будут удалены из избранного"
+                    } else {
+                        "Именины \"${nameDay.displayNames}\" будут добавлены в избранное и доступны без интернета"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        favoritesViewModel.toggleFavorite(nameDay)
+                        coroutineScope.launch {
+                            isFavorite = favoritesViewModel.isFavorite(nameDay)
+                        }
+                        showFavoriteDialog = false
+                    }
+                ) {
+                    Text(
+                        if (isFavorite) "Удалить" else "Добавить",
+                        color = if (isFavorite) MaterialTheme.colorScheme.error else Color(0xFF1976D2)
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFavoriteDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 

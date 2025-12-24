@@ -3,9 +3,12 @@ package com.example.hw_3.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.hw_3.api.RetrofitClient
+import com.example.hw_3.data.FilterPreferences
 import com.example.hw_3.data.NameDay
 import com.example.hw_3.data.SvatkyResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +18,13 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 class QuoteViewModel : ViewModel() {
-    // Приватный изменяемый поток для списка именин
+    // Приватный изменяемый поток для всех именин (без фильтрации)
+    private val _allQuotes = MutableStateFlow<List<NameDay>>(emptyList())
+    
+    // Текущие фильтры
+    private val _filterPreferences = MutableStateFlow<FilterPreferences>(FilterPreferences())
+    
+    // Приватный изменяемый поток для отфильтрованного списка именин
     private val _quotes = MutableStateFlow<List<NameDay>>(emptyList())
     // Преобразует MutableStateFlow в StateFlow, предотвращая изменение извне
     val quotes: StateFlow<List<NameDay>> = _quotes.asStateFlow()
@@ -83,16 +92,64 @@ class QuoteViewModel : ViewModel() {
         return nameDays
     }
     
+    // Функция для применения фильтров к списку именин
+    private fun applyFilters(quotes: List<NameDay>, filters: FilterPreferences): List<NameDay> {
+        if (quotes.isEmpty()) return emptyList()
+        
+        // Если все фильтры пустые (дефолтное состояние), возвращаем все данные
+        if (filters.selectedMonth == null && filters.selectedDay == null && filters.nameSearch.isEmpty()) {
+            return quotes
+        }
+        
+        return quotes.filter { nameDay ->
+            // Фильтр по месяцу
+            val monthMatches = filters.selectedMonth == null || nameDay.month == filters.selectedMonth
+            
+            // Фильтр по дню
+            val dayMatches = filters.selectedDay == null || nameDay.day == filters.selectedDay
+            
+            // Фильтр по имени (поиск)
+            val nameMatches = filters.nameSearch.isEmpty() || 
+                nameDay.names.any { name -> 
+                    name.contains(filters.nameSearch.trim(), ignoreCase = true) 
+                }
+            
+            monthMatches && dayMatches && nameMatches
+        }
+    }
+    
+    // Обновление фильтров и применение их к текущему списку
+    fun updateFilters(filters: FilterPreferences) {
+        try {
+            _filterPreferences.value = filters
+            val allQuotes = _allQuotes.value
+            val filtered = if (allQuotes.isNotEmpty()) {
+                applyFilters(allQuotes, filters)
+            } else {
+                emptyList()
+            }
+            _quotes.value = filtered
+            android.util.Log.d("QuoteViewModel", "Filters applied: month=${filters.selectedMonth}, day=${filters.selectedDay}, name=${filters.nameSearch}, result count=${filtered.size}")
+        } catch (e: Exception) {
+            android.util.Log.e("QuoteViewModel", "Error updating filters: ${e.message}", e)
+            // В случае ошибки оставляем текущие данные
+        }
+    }
+    
     init {
         // Сразу показываем fallback данные при создании ViewModel
-        _quotes.value = generateFallbackNameDays(20)
+        val fallbackData = generateFallbackNameDays(20)
+        _allQuotes.value = fallbackData
+        _quotes.value = fallbackData
     }
     
     // Публичная функция для инициации загрузки именин
-    fun fetchQuotes(count: Int = 30) {
-        // Если данные уже загружены, не делаем запрос
-        if (_quotes.value.size >= count) {
+    fun fetchQuotes(count: Int = 30, forceReload: Boolean = false) {
+        // Если данные уже загружены, не делаем запрос (если не принудительная перезагрузка)
+        if (!forceReload && _allQuotes.value.size >= count) {
             android.util.Log.d("NameDayViewModel", "Using cached data, skipping network request")
+            // Применяем текущие фильтры к кэшированным данным
+            _quotes.value = applyFilters(_allQuotes.value, _filterPreferences.value)
             return
         }
         
@@ -102,78 +159,75 @@ class QuoteViewModel : ViewModel() {
         // Запускает корутину в scope ViewModel с использованием Dispatchers.IO для сетевых операций
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val nameDayList = _quotes.value.toMutableList()
+                val nameDayList = mutableListOf<NameDay>()
                 var successCount = 0
                 
-                // Если список пуст, добавляем fallback данные
-                if (nameDayList.isEmpty()) {
-                    nameDayList.addAll(generateFallbackNameDays(count))
-                    // Обновляем UI сразу с fallback данными
-                    withContext(Dispatchers.Main) {
-                        _quotes.value = nameDayList.toList()
+                // Загружаем данные с API для разных дат параллельно
+                val maxApiRequests = minOf(count, 20) // Ограничиваем количество запросов до 20
+                
+                // Загружаем параллельно для ускорения
+                val requests = (0 until maxApiRequests).map { index ->
+                    async {
+                        try {
+                            val tempCalendar = Calendar.getInstance()
+                            tempCalendar.add(Calendar.DAY_OF_MONTH, index + 1)
+                            val day = tempCalendar.get(Calendar.DAY_OF_MONTH)
+                            val month = tempCalendar.get(Calendar.MONTH) + 1
+                            
+                            val response = RetrofitClient.quoteApiService.getNameDayByDate(day, month)
+                            if (response.isSuccessful) {
+                                response.body()?.let { svatkyResponse ->
+                                    convertToNameDay(svatkyResponse)
+                                }
+                            } else {
+                                null
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("NameDayViewModel", "Error loading name day ${index + 1}: ${e.message}")
+                            null
+                        }
                     }
                 }
                 
-                // Загружаем данные с API для разных дат
-                val calendar = Calendar.getInstance()
-                val maxApiRequests = minOf(count, 30) // Ограничиваем количество запросов
+                // Ждем результаты всех запросов
+                val results = requests.mapNotNull { it.await() }
                 
-                for (index in 0 until maxApiRequests) {
-                    try {
-                        if (index > 0) {
-                            delay(500) // Небольшая задержка между запросами
+                // Добавляем успешно загруженные данные
+                results.forEach { nameDay ->
+                    if (!nameDayList.any { it.day == nameDay.day && it.month == nameDay.month }) {
+                        nameDayList.add(nameDay)
+                        successCount++
+                    }
+                }
+                
+                // Если данных недостаточно, добавляем fallback
+                if (nameDayList.size < count) {
+                    val fallbackData = generateFallbackNameDays(count - nameDayList.size)
+                    fallbackData.forEach { fallbackDay ->
+                        if (!nameDayList.any { it.day == fallbackDay.day && it.month == fallbackDay.month }) {
+                            nameDayList.add(fallbackDay)
                         }
-                        
-                        calendar.add(Calendar.DAY_OF_MONTH, 1)
-                        val day = calendar.get(Calendar.DAY_OF_MONTH)
-                        val month = calendar.get(Calendar.MONTH) + 1
-                        
-                        val response = RetrofitClient.quoteApiService.getNameDayByDate(day, month)
-                        if (response.isSuccessful) {
-                            response.body()?.let { svatkyResponse ->
-                                convertToNameDay(svatkyResponse)?.let { nameDay ->
-                                    // Проверяем, нет ли дубликатов
-                                    if (!nameDayList.any { it.day == nameDay.day && it.month == nameDay.month }) {
-                                        // Заменяем fallback данные на реальные
-                                        if (index < nameDayList.size) {
-                                            nameDayList[index] = nameDay
-                                        } else if (nameDayList.size < count) {
-                                            nameDayList.add(nameDay)
-                                        }
-                                        successCount++
-                                        android.util.Log.d("NameDayViewModel", "Loaded name day ${index + 1}: ${nameDay.displayDate} - ${nameDay.displayNames}")
-                                        // Обновляем UI постепенно в главном потоке
-                                        withContext(Dispatchers.Main) {
-                                            _quotes.value = nameDayList.take(count).toList()
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            android.util.Log.w("NameDayViewModel", "Response not successful: ${response.code()}")
-                            // Продолжаем с fallback данными
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("NameDayViewModel", "Error loading name day ${index + 1}: ${e.message}")
-                        // Продолжаем с fallback данными
                     }
                 }
                 
                 // Финальное обновление списка именин
                 withContext(Dispatchers.Main) {
-                    if (nameDayList.isNotEmpty()) {
-                        android.util.Log.d("NameDayViewModel", "Successfully loaded ${nameDayList.size} name days (${successCount} from API, ${nameDayList.size - successCount} fallback)")
-                        _quotes.value = nameDayList.take(count).toList()
-                        _error.value = null
-                    } else {
-                        _error.value = "Не удалось загрузить именины"
-                    }
+                    val finalList = nameDayList.take(count).toList()
+                    android.util.Log.d("NameDayViewModel", "Successfully loaded ${finalList.size} name days (${successCount} from API, ${finalList.size - successCount} fallback)")
+                    _allQuotes.value = finalList
+                    // Применяем текущие фильтры
+                    val filtered = applyFilters(finalList, _filterPreferences.value)
+                    _quotes.value = filtered
+                    android.util.Log.d("NameDayViewModel", "After filtering: ${filtered.size} items")
+                    _error.value = null
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NameDayViewModel", "Fatal error: ${e.message}", e)
                 // Используем fallback данные даже при ошибке
                 withContext(Dispatchers.Main) {
-                    _quotes.value = generateFallbackNameDays(count)
+                    val fallbackData = generateFallbackNameDays(count)
+                    _allQuotes.value = fallbackData
+                    _quotes.value = applyFilters(fallbackData, _filterPreferences.value)
                     _error.value = null
                 }
             } finally {
@@ -187,8 +241,12 @@ class QuoteViewModel : ViewModel() {
         viewModelScope.launch {
             delay(delayMs)
             // Очищаем старые данные перед повторной попыткой
+            _allQuotes.value = emptyList()
             _quotes.value = emptyList()
-            fetchQuotes()
+            fetchQuotes(forceReload = true)
         }
     }
+    
+    // Получить текущие фильтры
+    fun getCurrentFilters(): FilterPreferences = _filterPreferences.value
 }
