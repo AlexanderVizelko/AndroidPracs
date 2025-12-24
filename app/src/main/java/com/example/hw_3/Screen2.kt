@@ -1,22 +1,17 @@
 package com.example.hw_3
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import com.example.hw_3.screens.FavoritesScreen
+import com.example.hw_3.viewmodel.FavoritesViewModel
 
 @Composable
-fun Screen2() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentSize(Alignment.Center)
-    ) {
-        Text(
-            text = "Screen 2"
-        )
-    }
+fun Screen2(
+    navController: NavHostController,
+    favoritesViewModel: FavoritesViewModel
+) {
+    FavoritesScreen(
+        navController = navController,
+        viewModel = favoritesViewModel
+    )
 }
